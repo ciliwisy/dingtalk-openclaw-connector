@@ -2,7 +2,7 @@
 
 以下提供两种方案连接到 [OpenClaw](https://openclaw.ai) Gateway，分别是钉钉机器人和钉钉 DEAP Agent。
 
-> 📝 **版本信息**：当前版本 v0.7.1 | [查看变更日志](CHANGELOG.md) | [发布说明](RELEASE_NOTES_v0.7.1.md) | [发布指南](RELEASE.md)
+> 📝 **版本信息**：当前版本 v0.7.2 | [查看变更日志](CHANGELOG.md) | [发布说明](RELEASE_NOTES_v0.7.2.md) | [发布指南](RELEASE.md)
 
 ## 快速导航
 
@@ -24,9 +24,11 @@
 - ✅ **主动发送消息** - 支持主动给钉钉个人或群发送消息
 - ✅ **富媒体接收** - 支持接收 JPEG/PNG 图片消息，自动下载并传递给视觉模型
 - ✅ **文件附件提取** - 支持解析 .docx、.pdf、纯文本文件（.txt、.md、.json 等）和二进制文件（.xlsx、.pptx、.zip 等）
+- ✅ **音频消息支持** - 支持发送音频消息，支持多种格式（mp3、wav、amr、ogg），自动提取音频时长，支持通过标记或文件附件方式发送
 - ✅ **钉钉文档 API** - 支持创建、追加、搜索、列举钉钉文档
 - ✅ **多 Agent 路由** - 支持一个连接器实例连接多个 Agent，多个钉钉机器人可分别绑定到不同 Agent，实现角色分工和专业化服务
 - ✅ **Markdown 表格转换** - 自动将 Markdown 表格转换为钉钉支持的文本格式，提升消息可读性
+- ✅ **异步模式** - 立即回执用户消息，后台处理任务，然后主动推送最终结果作为独立消息（可选）
 
 
 ## 架构
@@ -87,7 +89,9 @@ openclaw plugins install -l .
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
       "gatewayToken": "",                 // 可选：Gateway 认证 token, openclaw.json配置中 gateway.auth.token 的值 
       "gatewayPassword": "",              // 可选：Gateway 认证 password（与 token 二选一）
-      "sessionTimeout": 1800000           // 可选：会话超时(ms)，默认 30 分钟
+      "sessionTimeout": 1800000,          // 可选：会话超时(ms)，默认 30 分钟
+      "asyncMode": false,                 // 可选：异步模式，立即回执用户消息，后台处理并推送结果（默认：false）
+      "ackText": "🫡 任务已接收"      // 可选：异步模式下的回执消息文本（默认：'🫡 任务已接收，处理中...'）
     }
   },
   "gateway": { // gateway通常是已有的节点，配置时注意把http部分追加到已有节点下
@@ -139,6 +143,48 @@ openclaw plugins list  # 确认 dingtalk-connector 已加载
 | `gatewayToken` | `OPENCLAW_GATEWAY_TOKEN` | Gateway 认证 token（可选） |
 | `gatewayPassword` | — | Gateway 认证 password（可选，与 token 二选一） |
 | `sessionTimeout` | — | 会话超时时间，单位毫秒（默认 1800000 = 30分钟） |
+| `asyncMode` | — | 异步模式，立即回执用户消息，后台处理并推送结果（默认：false） |
+| `ackText` | — | 异步模式下的回执消息文本（默认：'🫡 任务已接收，处理中...'） |
+
+## 异步模式
+
+异步模式允许连接器立即回执用户消息，然后在后台处理任务，最后主动推送最终结果作为独立消息。这种模式特别适合处理耗时较长的任务，可以给用户更好的交互体验。
+
+### 启用异步模式
+
+在配置中设置 `asyncMode: true`：
+
+```json5
+{
+  "channels": {
+    "dingtalk-connector": {
+      "enabled": true,
+      "clientId": "dingxxxxxxxxx",
+      "clientSecret": "your_secret_here",
+      "asyncMode": true,              // 启用异步模式
+      "ackText": "🫡 任务已接收"  // 可选：自定义回执消息
+    }
+  }
+}
+```
+
+### 工作流程
+
+1. **立即回执** - 用户发送消息后，连接器立即发送回执消息（默认：`🫡 任务已接收，处理中...`）
+2. **后台处理** - 连接器在后台调用 Gateway 处理任务，支持文件附件和图片
+3. **推送结果** - 处理完成后，连接器主动推送最终结果作为独立消息
+
+### 适用场景
+
+- ✅ 处理耗时较长的任务（如文档分析、代码生成等）
+- ✅ 需要给用户即时反馈的场景
+- ✅ 希望将处理过程和结果分离的场景
+
+### 注意事项
+
+- 异步模式下不支持 AI Card 流式响应（因为结果通过主动推送发送）
+- 异步模式支持文件附件和图片处理
+- 错误信息也会通过主动推送发送给用户
 
 ## 多 Agent 配置
 

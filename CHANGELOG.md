@@ -6,6 +6,30 @@
 This document records all significant changes. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and version numbers follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.2] - 2026-03-05
+
+### 新增功能 / Added Features
+- ✅ 新增异步模式：立即回执用户消息，后台处理任务，然后主动推送最终结果作为独立消息  
+  Added async mode: immediately acknowledge user messages, process in background, then push the final result as a separate message
+- ✅ 支持自定义回执消息文本，可通过 `ackText` 配置项设置  
+  Support custom acknowledgment message text, configurable via `ackText` option
+
+### 修复 / Fixes
+- 🐛 修复异步模式下 Agent 路由问题：`streamFromGateway` 调用时缺少 `accountId` 参数，导致会话路由到 undefined agent  
+  Fixed agent routing in async mode: `streamFromGateway` was called without `accountId`, causing sessions to route to undefined agent
+- 🐛 修复默认 Agent 路由：当 `accountId` 为 `'default'` 时跳过 `X-OpenClaw-Agent-Id` header，让 gateway 路由到其配置的默认 agent  
+  Fixed default agent routing: Skip `X-OpenClaw-Agent-Id` header when `accountId` is `'default'`, letting gateway route to its configured default agent
+- 🐛 修复异步模式内容处理：使用 `userContent`（包含文件附件）替代原始 `content.text`  
+  Fixed async mode content: Use `userContent` (includes file attachments) instead of raw `content.text`
+- 🐛 修复异步模式图片支持：将 `imageLocalPaths` 传递给 gateway stream  
+  Fixed image support for async mode: Pass `imageLocalPaths` to gateway stream
+
+### 配置 / Configuration
+- 新增 `asyncMode` 配置项（默认：`false`）- 启用异步模式  
+  Added `asyncMode` configuration option (default: `false`) - Enable async mode
+- 新增 `ackText` 配置项（默认：`'🫡 任务已接收，处理中...'`）- 自定义回执消息文本  
+  Added `ackText` configuration option (default: `'🫡 任务已接收，处理中...'`) - Custom ack message text
+
 ## [0.7.1] - 2026-03-05
 
 ### 修复 / Fixes
