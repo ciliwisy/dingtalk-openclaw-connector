@@ -1196,13 +1196,18 @@ interface GatewayOptions {
   gatewayAuth?: string;  // token 或 password，都用 Bearer 格式
   /** 本地图片文件路径列表，用于 OpenClaw AgentMediaPayload */
   imageLocalPaths?: string[];
+  /** 自定义 Gateway URL（如通过 Nginx 代理），用于 TLS 等场景 */
+  gatewayBaseUrl?: string;
   log?: any;
 }
 
 async function* streamFromGateway(options: GatewayOptions, accountId: string): AsyncGenerator<string, void, unknown> {
-  const { userContent, systemPrompts, sessionKey, gatewayAuth, imageLocalPaths, log } = options;
+  const { userContent, systemPrompts, sessionKey, gatewayAuth, imageLocalPaths, gatewayBaseUrl, log } = options;
   const rt = getRuntime();
-  const gatewayUrl = `http://127.0.0.1:${rt.gateway?.port || 18789}/v1/chat/completions`;
+  // 支持自定义 Gateway URL（如通过 Nginx 代理），用于 TLS 等场景
+  const gatewayUrl = gatewayBaseUrl
+    ? `${gatewayBaseUrl}/v1/chat/completions`
+    : `http://127.0.0.1:${rt.gateway?.port || 18789}/v1/chat/completions`;
 
   const messages: any[] = [];
   for (const prompt of systemPrompts) {
@@ -2501,6 +2506,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey,
         gatewayAuth,
+        gatewayBaseUrl: dingtalkConfig.gatewayBaseUrl,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         log,
       }, accountId)) {
@@ -2570,6 +2576,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey,
         gatewayAuth,
+        gatewayBaseUrl: dingtalkConfig.gatewayBaseUrl,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         log,
       }, accountId)) {
@@ -2650,6 +2657,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey,
         gatewayAuth,
+        gatewayBaseUrl: dingtalkConfig.gatewayBaseUrl,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         log,
       }, accountId)) {
@@ -3029,6 +3037,7 @@ const dingtalkPlugin = {
         groupPolicy: { type: 'string', enum: ['open', 'allowlist'], default: 'open' },
         gatewayToken: { type: 'string', default: '', description: 'Gateway auth token (Bearer)' },
         gatewayPassword: { type: 'string', default: '', description: 'Gateway auth password (alternative to token)' },
+        gatewayBaseUrl: { type: 'string', default: '', description: 'Custom Gateway URL (e.g., http://127.0.0.1:18788 for Nginx proxy to TLS Gateway)' },
         sessionTimeout: { type: 'number', default: 1800000, description: 'Session timeout in ms (default 30min)' },
         asyncMode: { type: 'boolean', default: false, description: 'Send immediate ack and push final result as a second message' },
         ackText: { type: 'string', default: '🫡 任务已接收，处理中...', description: 'Ack text when asyncMode is enabled' },
