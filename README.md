@@ -1,8 +1,9 @@
-# DingTalk OpenClaw Connector
+# Offical DingTalk OpenClaw Connector 
+## 钉钉官方OpenClaw连接器
 
 以下提供两种方案连接到 [OpenClaw](https://openclaw.ai) Gateway，分别是钉钉机器人和钉钉 DEAP Agent。
 
-> 📝 **版本信息**：当前版本 v0.7.5 | [查看变更日志](CHANGELOG.md) | [发布说明](docs/RELEASE_NOTES_V0.7.4.md) | [发布指南](RELEASE.md)
+> 📝 **版本信息**：当前版本 v0.7.6 | [查看变更日志](CHANGELOG.md) | [发布说明](docs/RELEASE_NOTES_V0.7.6.md) | [发布指南](RELEASE.md)
 
 ## 快速导航
 
@@ -86,6 +87,7 @@ openclaw plugins install -l .
   "channels": {
     "dingtalk-connector": {
       "enabled": true,
+      "gatewayBaseUrl": "http://localhost:18789", // 可选：如果Gateway地址是TLS/HTTPS，see PR #117
       "clientId": "dingxxxxxxxxx",       // 钉钉 AppKey
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
       "gatewayToken": "",                 // 可选：Gateway 认证 token, openclaw.json配置中 gateway.auth.token 的值 
@@ -547,6 +549,39 @@ openclaw plugins install @dingtalk-real-ai/dingtalk-connector
 | `mammoth` | Word 文档（.docx）解析 |
 | `pdf-parse` | PDF 文档解析 |
 
+### Q: Stream 客户端连接 400 错误
+
+日志中出现 `channel exited: Request failed with status code 400`，表示钉钉 Stream 连接失败。
+
+**常见原因：**
+
+| 原因 | 排查方法 |
+|------|----------|
+| **应用未发布** | 钉钉开放平台 → 应用 → 版本管理 → 确认已发布 |
+| **凭证错误** | 检查 `clientId`/`clientSecret` 是否有空格或换行 |
+| **非 Stream 模式** | 确认机器人消息接收模式为 **Stream 模式** |
+| **IP 白名单限制** | 检查应用是否设置了 IP 白名单 |
+
+**排查步骤：**
+
+1. **验证凭证有效性**
+   ```bash
+   curl -X POST "https://api.dingtalk.com/v1.0/oauth2/accessToken" \
+     -H "Content-Type: application/json" \
+     -d '{"appKey": "你的clientId", "appSecret": "你的clientSecret"}'
+   ```
+   - 返回 `accessToken` → 凭证正确
+   - 返回 `400`/`invalid` → 凭证错误或应用未发布
+
+2. **检查应用状态**
+   - 登录 [钉钉开放平台](https://open-dev.dingtalk.com/)
+   - 确认应用已发布（版本管理 → 发布）
+   - 确认机器人已启用且为 Stream 模式
+
+3. **重新发布应用**
+   - 修改任何配置后，必须点击 **保存** → **发布**
+
+
 # 方案二：钉钉 DEAP Agent 集成
 
 通过将钉钉 [DEAP](https://deap.dingtalk.com) Agent 与 [OpenClaw](https://openclaw.ai) Gateway 连接，实现自然语言驱动的本地设备操作能力。
@@ -645,6 +680,9 @@ openclaw gateway start
    | gatewayToken | 第一步获取 | Gateway 配置的认证令牌 |
 
    <img width="3426" height="1752" alt="配置 OpenClaw 技能参数" src="https://github.com/user-attachments/assets/bc725789-382f-41b5-bbdb-ba8f29923d5c" />
+
+注意 OpenClaw 属于一个MCP，还需要配置他的触发规则，满足规则的情况下才会使用这个MCP:
+<img width="1088" height="526" alt="image" src="https://github.com/user-attachments/assets/8b0b6f6d-70ff-4edc-b674-7a24126aadfa" />
 
 4. 发布 Agent：
 

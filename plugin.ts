@@ -73,9 +73,13 @@ function markMessageProcessed(messageId: string): void {
 const NEW_SESSION_COMMANDS = ['/new', '/reset', '/clear', '新会话', '重新开始', '清空对话'];
 
 /** 检查消息是否是新会话命令 */
-function isNewSessionCommand(text: string): boolean {
-  const trimmed = text.trim().toLowerCase();
-  return NEW_SESSION_COMMANDS.some(cmd => trimmed === cmd.toLowerCase());
+function normalizeSlashCommand(text: string): string {
+  const trimmed = text.trim();
+  const lower = trimmed.toLowerCase();
+  if (NEW_SESSION_COMMANDS.some(cmd => lower === cmd.toLowerCase())) {
+    return '/new';
+  }
+  return text;
 }
 
 /**
@@ -1373,6 +1377,8 @@ interface GatewayOptions {
   memoryUser?: string;
   /** 本地图片文件路径列表，用于 OpenClaw AgentMediaPayload */
   imageLocalPaths?: string[];
+  /** 自定义 Gateway URL（如通过 Nginx 代理），用于 TLS 等场景 */
+  gatewayBaseUrl?: string;
   /** 会话类型：'direct'（单聊）或 'group'（群聊），用于 bindings 匹配 */
   peerKind?: 'direct' | 'group';
   /** 发送者 ID，用于 bindings 匹配 */
@@ -1382,10 +1388,13 @@ interface GatewayOptions {
 }
 
 async function* streamFromGateway(options: GatewayOptions, accountId: string): AsyncGenerator<string, void, unknown> {
-  const { userContent, systemPrompts, sessionKey, gatewayAuth, memoryUser, imageLocalPaths, peerKind, peerId, gatewayPort, log } = options;
+  // 支持自定义 Gateway URL（如通过 Nginx 代理），用于 TLS 等场景
+  const { userContent, systemPrompts, sessionKey, gatewayAuth, gatewayBaseUrl, memoryUser, imageLocalPaths, peerKind, peerId, gatewayPort, log } = options;
   const rt = getRuntime();
   const port = gatewayPort || rt.gateway?.port || 18789;
-  const gatewayUrl = `http://127.0.0.1:${port}/v1/chat/completions`;
+  const gatewayUrl = gatewayBaseUrl
+    ? `${gatewayBaseUrl}/v1/chat/completions`
+    : `http://127.0.0.1:${port}/v1/chat/completions`;
 
   const messages: any[] = [];
   for (const prompt of systemPrompts) {
@@ -2491,6 +2500,62 @@ async function sendProactive(
   return { ok: false, error: 'Must specify userId, userIds, or openConversationId', usedAICard: false };
 }
 
+// ============ 消息处理中表情 ============
+
+/** 在用户消息上贴 🤔思考中 表情，表示正在处理 */
+async function addEmotionReply(config: any, data: any, log?: any): Promise<void> {
+  if (!data.msgId || !data.conversationId) return;
+  try {
+    const token = await getAccessToken(config);
+    await axios.post(`${DINGTALK_API}/v1.0/robot/emotion/reply`, {
+      robotCode: data.robotCode ?? config.clientId,
+      openMsgId: data.msgId,
+      openConversationId: data.conversationId,
+      emotionType: 2,
+      emotionName: '🤔思考中',
+      textEmotion: {
+        emotionId: '2659900',
+        emotionName: '🤔思考中',
+        text: '🤔思考中',
+        backgroundId: 'im_bg_1',
+      },
+    }, {
+      headers: { 'x-acs-dingtalk-access-token': token, 'Content-Type': 'application/json' },
+      timeout: 5_000,
+    });
+    log?.info?.(`[DingTalk][Emotion] 贴表情成功: msgId=${data.msgId}`);
+  } catch (err: any) {
+    log?.warn?.(`[DingTalk][Emotion] 贴表情失败（不影响主流程）: ${err.message}`);
+  }
+}
+
+/** 撤回用户消息上的 🤔思考中 表情 */
+async function recallEmotionReply(config: any, data: any, log?: any): Promise<void> {
+  if (!data.msgId || !data.conversationId) return;
+  try {
+    const token = await getAccessToken(config);
+    await axios.post(`${DINGTALK_API}/v1.0/robot/emotion/recall`, {
+      robotCode: data.robotCode ?? config.clientId,
+      openMsgId: data.msgId,
+      openConversationId: data.conversationId,
+      emotionType: 2,
+      emotionName: '🤔思考中',
+      textEmotion: {
+        emotionId: '2659900',
+        emotionName: '🤔思考中',
+        text: '🤔思考中',
+        backgroundId: 'im_bg_1',
+      },
+    }, {
+      headers: { 'x-acs-dingtalk-access-token': token, 'Content-Type': 'application/json' },
+      timeout: 5_000,
+    });
+    log?.info?.(`[DingTalk][Emotion] 撤回表情成功: msgId=${data.msgId}`);
+  } catch (err: any) {
+    log?.warn?.(`[DingTalk][Emotion] 撤回表情失败（不影响主流程）: ${err.message}`);
+  }
+}
+
 // ============ 核心消息处理 (AI Card Streaming) ============
 
 async function handleDingTalkMessage(params: {
@@ -2520,18 +2585,6 @@ async function handleDingTalkMessage(params: {
       log?.warn?.(`[DingTalk] DM 被拦截: senderId=${senderId} 不在 allowFrom 白名单中`);
       return;
     }
-  }
-
-  // ===== Session 管理 =====
-  const forceNewSession = isNewSessionCommand(content.text);
-
-  // 如果是新会话命令，直接回复确认消息
-  if (forceNewSession) {
-    await sendMessage(dingtalkConfig, sessionWebhook, '✨ 已开启新会话，之前的对话已清空。', {
-      atUserId: !isDirect ? senderId : null,
-    });
-    log?.info?.(`[DingTalk] 用户请求新会话: ${senderId}`);
-    return;
   }
 
   // 构建 OpenClaw 标准会话上下文
@@ -2677,7 +2730,9 @@ async function handleDingTalkMessage(params: {
   }
 
   // 对于纯图片消息（无文本），添加默认提示
-  let userContent = content.text || (imageLocalPaths.length > 0 ? '请描述这张图片' : '');
+  // 文本部分先经过 normalizeSlashCommand，统一将 /reset /clear 等别名指令转为 /new，再交由 Gateway 解析
+  const rawText = content.text || '';
+  let userContent = normalizeSlashCommand(rawText) || (imageLocalPaths.length > 0 ? '请描述这张图片' : '');
   // 追加文件内容
   if (fileContentParts.length > 0) {
     const fileText = fileContentParts.join('\n\n');
@@ -2685,6 +2740,10 @@ async function handleDingTalkMessage(params: {
   }
   if (!userContent && imageLocalPaths.length === 0) return;
 
+  // ===== 贴处理中表情 =====
+  await addEmotionReply(dingtalkConfig, data, log);
+
+  try {
   // ===== 异步模式：立即回执 + 后台执行 + 主动推送结果 =====
   const asyncMode = dingtalkConfig.asyncMode === true;
   const proactiveTarget = isDirect
@@ -2715,6 +2774,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey: sessionContextJson,
         gatewayAuth,
+        gatewayBaseUrl: dingtalkConfig.gatewayBaseUrl,
         memoryUser,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         peerKind,
@@ -2792,6 +2852,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey: sessionContextJson,
         gatewayAuth,
+        gatewayBaseUrl: dingtalkConfig.gatewayBaseUrl,
         memoryUser,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         peerKind,
@@ -2876,6 +2937,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey: sessionContextJson,
         gatewayAuth,
+        gatewayBaseUrl: dingtalkConfig.gatewayBaseUrl,
         memoryUser,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         peerKind,
@@ -2914,6 +2976,10 @@ async function handleDingTalkMessage(params: {
         atUserId: !isDirect ? senderId : null,
       });
     }
+  }
+  } finally {
+    // ===== 撤回处理中表情 =====
+    await recallEmotionReply(dingtalkConfig, data, log);
   }
 }
 
@@ -3259,6 +3325,7 @@ const dingtalkPlugin = {
         groupPolicy: { type: 'string', enum: ['open', 'allowlist'], default: 'open' },
         gatewayToken: { type: 'string', default: '', description: 'Gateway auth token (Bearer)' },
         gatewayPassword: { type: 'string', default: '', description: 'Gateway auth password (alternative to token)' },
+        gatewayBaseUrl: { type: 'string', default: '', description: 'Custom Gateway URL (e.g., http://127.0.0.1:18788 for Nginx proxy to TLS Gateway)' },
         sessionTimeout: { type: 'number', default: 1800000, description: 'Session timeout in ms (default 30min)' },
         separateSessionByConversation: { type: 'boolean', default: true, description: '是否按单聊/群聊/群区分 session' },
         sharedMemoryAcrossConversations: { type: 'boolean', default: false, description: '单 agent 场景下是否共享记忆；false 时不同群聊、群聊与私聊记忆隔离' },
@@ -3288,7 +3355,10 @@ const dingtalkPlugin = {
       const config = getConfig(cfg);
       const id = accountId || DEFAULT_ACCOUNT_ID;
       if (config.accounts?.[id]) {
-        return { accountId: id, config: config.accounts[id], enabled: config.accounts[id].enabled !== false };
+        // 合并 channel 级别配置（如 gatewayBaseUrl）到 account 配置
+        const { accounts, ...channelConfig } = config;
+        const mergedConfig = { ...channelConfig, ...config.accounts[id] };
+        return { accountId: id, config: mergedConfig, enabled: config.accounts[id].enabled !== false };
       }
       // 没有 accounts 配置或找不到指定账号时，使用顶层配置
       return { accountId: DEFAULT_ACCOUNT_ID, config, enabled: config.enabled !== false };
@@ -3462,15 +3532,15 @@ const dingtalkPlugin = {
           ctx.log?.info?.(`[DingTalk] 已立即确认回调: messageId=${messageId}`);
         }
 
-        // 【消息去重】检查是否已处理过该消息
-        if (messageId && isMessageProcessed(messageId)) {
-          ctx.log?.warn?.(`[DingTalk] 检测到重复消息，跳过处理: messageId=${messageId}`);
+        // 【消息去重】检查是否已处理过该消息（按账号维度隔离）
+        if (messageId && isMessageProcessed(account.accountId, messageId)) {
+          ctx.log?.warn?.(`[DingTalk][${account.accountId}] 检测到重复消息，跳过处理: messageId=${messageId}`);
           return;
         }
 
-        // 标记消息为已处理
+        // 标记消息为已处理（按账号维度隔离）
         if (messageId) {
-          markMessageProcessed(messageId);
+          markMessageProcessed(account.accountId, messageId);
         }
 
         // 异步处理消息（不阻塞回调确认）
