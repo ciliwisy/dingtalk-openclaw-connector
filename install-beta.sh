@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+# 清理函数：确保临时文件被清理
+TEMP_FILES=()
+cleanup() {
+    for file in "${TEMP_FILES[@]}"; do
+        if [ -f "$file" ]; then
+            rm -f "$file"
+        fi
+    done
+}
+trap cleanup EXIT
+
 echo "🚀 开始安装钉钉连接器 v0.8.0-beta..."
 
 # 检查 OpenClaw 是否已安装
@@ -29,23 +40,30 @@ if [ -n "$OLD_BACKUPS" ]; then
     BACKUP_COUNT=$(echo "$OLD_BACKUPS" | wc -l | tr -d ' ')
     echo "📋 发现 $BACKUP_COUNT 个旧备份"
     
-    # 找到最老的备份（最原始的配置）
-    OLDEST_BACKUP=$(echo "$OLD_BACKUPS" | tail -1)
-    echo "📌 将从最原始的备份中提取配置: $(basename "$OLDEST_BACKUP")"
+    # 找到最新的备份（用户当前正在使用的配置）
+    LATEST_BACKUP=$(echo "$OLD_BACKUPS" | head -1)
+    echo "📌 将从最新备份中提取配置：$(basename "$LATEST_BACKUP")"
     
-    # 先复制最老的备份到临时位置（避免被删除）
+    # 先复制最新的备份到临时位置（避免被删除）
     TEMP_SOURCE=$(mktemp)
-    if ! cp "$OLDEST_BACKUP" "$TEMP_SOURCE"; then
+    TEMP_FILES+=("$TEMP_SOURCE")
+    if ! cp "$LATEST_BACKUP" "$TEMP_SOURCE"; then
         echo "❌ 错误：无法复制备份文件"
         exit 1
     fi
     SOURCE_CONFIG="$TEMP_SOURCE"
     
-    # 删除所有旧备份
-    echo "🗑️  清理旧备份..."
+    # 保留最新的备份用于回滚，只删除旧的备份
+    echo "🗑️  清理旧备份（保留最新备份用于回滚）..."
+    FIRST=true
     while read -r backup; do
-        rm -f "$backup"
-        echo "   - 已删除: $(basename "$backup")"
+        if [ "$FIRST" = true ]; then
+            FIRST=false
+            echo "   - 保留：$(basename "$backup")"
+        else
+            rm -f "$backup"
+            echo "   - 已删除：$(basename "$backup")"
+        fi
     done <<< "$OLD_BACKUPS"
 else
     echo "ℹ️  未发现旧备份，将使用当前配置"
@@ -71,7 +89,7 @@ if [ -f "$CONFIG_FILE" ]; then
         EXISTING_CONNECTOR_ACCOUNTS=$(jq -r '.channels."dingtalk-connector".accounts // empty' "$CONFIG_FILE")
         
         # 如果已经有 dingtalk-connector 配置，跳过迁移
-        if [ -n "$EXISTING_CONNECTOR_ID" ] || [ -n "$EXISTING_CONNECTOR_SECRET" ] || [ "$EXISTING_CONNECTOR_ACCOUNTS" != "null" ] && [ -n "$EXISTING_CONNECTOR_ACCOUNTS" ]; then
+        if [ -n "$EXISTING_CONNECTOR_ID" ] || [ -n "$EXISTING_CONNECTOR_SECRET" ] || { [ "$EXISTING_CONNECTOR_ACCOUNTS" != "null" ] && [ -n "$EXISTING_CONNECTOR_ACCOUNTS" ]; }; then
             echo "✅ 检测到已有 dingtalk-connector 配置，跳过迁移"
             echo "   - 配置文件保持不变"
         else
@@ -99,6 +117,7 @@ if [ -f "$CONFIG_FILE" ]; then
             
             # 创建临时文件
             TEMP_FILE=$(mktemp)
+            TEMP_FILES+=("$TEMP_FILE")
             
             # 迁移配置（根据 clientSecret 类型选择不同的处理方式）
             if [ "$SECRET_TYPE" = "string" ]; then
@@ -186,7 +205,21 @@ npm install
 
 # 卸载旧版本
 echo "🗑️  卸载旧版本..."
-openclaw plugins uninstall dingtalk-connector || true
+
+# 检查插件是否已安装
+INSTALLED_PLUGINS=$(openclaw plugins list 2>/dev/null || echo "")
+if echo "$INSTALLED_PLUGINS" | grep -q "dingtalk-connector"; then
+    echo "📦 检测到已安装的 dingtalk-connector，正在卸载..."
+    # 使用 -f 强制卸载，避免交互式确认
+    if command -v yes &> /dev/null; then
+        yes | openclaw plugins uninstall dingtalk-connector
+    else
+        echo "y" | openclaw plugins uninstall dingtalk-connector
+    fi
+    echo "✅ 旧版本已卸载"
+else
+    echo "ℹ️  未检测到已安装的 dingtalk-connector，跳过卸载"
+fi
 
 # 安装新版本
 echo "✨ 安装新版本..."
@@ -195,11 +228,6 @@ openclaw plugins install -l .
 # 重启 Gateway
 echo "🔄 重启 Gateway..."
 openclaw gateway restart
-
-# 清理临时文件
-if [ -n "$TEMP_SOURCE" ] && [ -f "$TEMP_SOURCE" ]; then
-    rm -f "$TEMP_SOURCE"
-fi
 
 echo ""
 echo "✅ 安装完成！"
