@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-03-23
+
+### 修复 / Fixes
+- 🐛 **多 Agent 路由与 sharedMemoryAcrossConversations 冲突** - 修复配置 `sharedMemoryAcrossConversations: true` 时，多群分配不同 Agent 的 bindings 全部路由到同一 Agent 的问题。路由匹配现在使用专用的 `peerId`（真实 peer 标识，不受会话隔离配置影响），session 构建使用 `sessionPeerId`，两者职责严格分离  
+  **Multi-Agent routing conflict with sharedMemoryAcrossConversations** - Fixed all bindings resolving to the same Agent when `sharedMemoryAcrossConversations: true`. Routing now uses dedicated `peerId` (real peer identifier, unaffected by session isolation config); session construction uses `sessionPeerId` with strict separation of responsibilities
+
+- 🐛 **发送图片失败** - 修复发送图片时出现异常的问题 ([#316](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/316))  
+  **Image sending failure** - Fixed an issue where sending images would fail with an error ([#316](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/316))
+
 ## [0.8.2] - 2026-03-22
 
 ### 修复 / Fixes

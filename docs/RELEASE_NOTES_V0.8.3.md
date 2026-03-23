@@ -1,4 +1,41 @@
-1. sharedMemoryAcrossConversations 参数问题（多agent路由）
-2. https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/317 升级warn
-3.（已修复待提交） https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/316 发送图片有问题
-3. https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/315 消息轮回复
+# Release Notes - v0.8.3
+
+## 🎉 新版本亮点 / Highlights
+
+本次更新修复了两个重要问题：多 Agent 路由在 `sharedMemoryAcrossConversations` 配置下的路由错误，以及发送图片时的异常问题。
+
+This release fixes two important issues: incorrect multi-Agent routing when `sharedMemoryAcrossConversations` is enabled, and an image sending failure.
+
+## 🐛 修复 / Fixes
+
+- **多 Agent 路由与 sharedMemoryAcrossConversations 冲突 / Multi-Agent Routing Conflict with sharedMemoryAcrossConversations**  
+  修复了配置 `sharedMemoryAcrossConversations: true` 时，多群分配不同 Agent 的 bindings 全部路由到同一个 Agent 的问题。根因是路由匹配错误地使用了 `sessionPeerId`（已被覆盖为 `accountId`）而非真实的 peer 标识。修复后，路由匹配使用专用的 `peerId` 字段（不受会话隔离配置影响），session 构建使用 `sessionPeerId`，两者职责严格分离。  
+  Fixed an issue where all bindings routing different groups to different Agents would resolve to the same Agent when `sharedMemoryAcrossConversations: true` was configured. The root cause was that routing matched against `sessionPeerId` (overridden to `accountId`) instead of the real peer identifier. After the fix, routing uses the dedicated `peerId` field (unaffected by session isolation config), while session construction uses `sessionPeerId`, with strict separation of responsibilities.
+
+- **发送图片失败 / Image Sending Failure**  
+  修复了发送图片时出现异常的问题。([#316](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/316))  
+  Fixed an issue where sending images would fail with an error. ([#316](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues/316))
+
+## 📥 安装升级 / Installation & Upgrade
+
+```bash
+# 通过 npm 安装最新版本 / Install latest version via npm
+openclaw plugins install @dingtalk-real-ai/dingtalk-connector
+
+# 或升级现有版本 / Or upgrade existing version
+openclaw plugins update dingtalk-connector
+
+# 通过 Git 安装 / Install via Git
+openclaw plugins install https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector.git
+```
+
+## 🔗 相关链接 / Related Links
+
+- [完整变更日志 / Full Changelog](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/blob/main/CHANGELOG.md)
+- [使用文档 / Documentation](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/blob/main/README.md)
+
+---
+
+**发布日期 / Release Date**：2026-03-23  
+**版本号 / Version**：v0.8.3  
+**兼容性 / Compatibility**：OpenClaw Gateway 0.4.0+
