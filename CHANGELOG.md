@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-03-22
+
+### 修复 / Fixes
+- 🐛 **多账号重复启动问题** - 修复 `enabled: false` 的账号仍会建立 WebSocket 连接的问题，禁用账号现在正确保持 pending 状态直到 Gateway 停止  
+  **Multi-account duplicate startup** - Fixed accounts with `enabled: false` still establishing WebSocket connections; disabled accounts now correctly remain in a pending state until the Gateway stops
+
+- 🐛 **相同 clientId 账号去重** - 修复多个账号配置相同 `clientId` 时建立重复连接的问题，通过静态配置分析确保同一 `clientId` 只有列表中第一个启用账号建立连接  
+  **Duplicate clientId deduplication** - Fixed duplicate connections when multiple accounts share the same `clientId`; static config analysis now ensures only the first enabled account per `clientId` establishes a connection
+
+
+### 改进 / Improvements
+- ✅ **Onboarding 配置向导优化** - 改进钉钉连接器配置引导逻辑，调整凭据输入顺序（先 Client ID 后 Client Secret），优化引导文案  
+  **Onboarding wizard improvement** - Improved DingTalk connector onboarding flow, adjusted credential input order (Client ID first, then Client Secret), and refined guidance text
+
+- ✅ **会话 Key 遵循 OpenClaw 规范** - 会话上下文按 OpenClaw 标准规则构建，通过 `channel`、`accountId`、`chatType`、`peerId` 唯一标识会话，支持 `sharedMemoryAcrossConversations` 跨会话记忆共享  
+  **Session key follows OpenClaw convention** - Session context now built per OpenClaw standard rules, uniquely identified via `channel`, `accountId`, `chatType`, `peerId`; supports `sharedMemoryAcrossConversations` for cross-conversation memory sharing
+
+- ✅ **消息处理逻辑优化** - 重构消息处理流程，提升消息响应速度和处理可靠性，确保消息按序正确处理  
+  **Message processing logic optimization** - Refactored message processing flow to improve response speed and reliability, ensuring messages are processed correctly in order
+
 ## [0.8.1] - 2026-03-20
 
 ### 修复 / Fixes
