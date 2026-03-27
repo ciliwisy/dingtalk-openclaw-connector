@@ -23,12 +23,12 @@ graph LR
     subgraph "钉钉 App"
         A["用户与 Agent 对话"] --> B["DEAP Agent"]
     end
-    
+
     subgraph "本地环境"
         D["DingTalk OpenClaw Connector"] --> C["OpenClaw Gateway"]
         C --> E["PC 操作执行"]
     end
-    
+
     B -.-> D
 ```
 
@@ -45,13 +45,10 @@ openclaw gateway start
 #### 配置 Gateway 参数
 
 1. 访问 [配置页面](http://127.0.0.1:18789/config)
-2. 在 **Auth 标签页** 中设置 Gateway Token 并妥善保存：
-
-   <img width="3444" height="1748" alt="Gateway Auth 配置界面" src="https://github.com/user-attachments/assets/f9972458-c857-4416-9bd1-6439d71a3777" />
-
-3. 切换至 **Http 标签页**，启用 `OpenAI Chat Completions Endpoint` 功能：
-
-   <img width="3442" height="1734" alt="Gateway Http 配置界面" src="https://github.com/user-attachments/assets/d0365187-c02d-418b-9ca9-cfbdfd62e6a9" />
+2. 在 **概览** 中设置 Gateway Token 并妥善保存：
+   ![alt text](images/image-5.png)
+3. 切换至 **基础设施**，启用 `OpenAI Chat Completions Endpoint` 功能：
+   ![alt text](images/image-6.png)
 
 4. 点击右上角 `Save` 按钮完成配置保存
 
@@ -91,11 +88,11 @@ openclaw gateway start
 
 3. 配置技能参数：
 
-   | 参数 | 来源 | 说明 |
-   |------|------|------|
-   | apikey | 第二步获取 | DEAP 平台 API Key |
-   | apihost | 默认值 | 通常为 `127.0.0.1:18789`，在Windows环境下可能需要配置为 `localhost:18789` 才能正常工作 |
-   | gatewayToken | 第一步获取 | Gateway 配置的认证令牌 |
+   | 参数         | 来源       | 说明                                                                                   |
+   | ------------ | ---------- | -------------------------------------------------------------------------------------- |
+   | apikey       | 第二步获取 | DEAP 平台 API Key                                                                      |
+   | apihost      | 默认值     | 通常为 `127.0.0.1:18789`，在Windows环境下可能需要配置为 `localhost:18789` 才能正常工作 |
+   | gatewayToken | 第一步获取 | Gateway 配置的认证令牌                                                                 |
 
    <img width="3426" height="1752" alt="配置 OpenClaw 技能参数" src="https://github.com/user-attachments/assets/bc725789-382f-41b5-bbdb-ba8f29923d5c" />
 

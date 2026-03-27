@@ -23,12 +23,12 @@ graph LR
     subgraph "DingTalk App"
         A["User chats with Agent"] --> B["DEAP Agent"]
     end
-    
+
     subgraph "Local Environment"
         D["DingTalk OpenClaw Connector"] --> C["OpenClaw Gateway"]
         C --> E["PC Operation Execution"]
     end
-    
+
     B -.-> D
 ```
 
@@ -45,13 +45,10 @@ openclaw gateway start
 #### Configure Gateway Parameters
 
 1. Visit the [Configuration Page](http://127.0.0.1:18789/config)
-2. In the **Auth tab**, set the Gateway Token and save it securely:
-
-   <img width="3444" height="1748" alt="Gateway Auth Configuration" src="https://github.com/user-attachments/assets/f9972458-c857-4416-9bd1-6439d71a3777" />
-
-3. Switch to the **Http tab** and enable the `OpenAI Chat Completions Endpoint`:
-
-   <img width="3442" height="1734" alt="Gateway Http Configuration" src="https://github.com/user-attachments/assets/d0365187-c02d-418b-9ca9-cfbdfd62e6a9" />
+2. In the **Overview**, set the Gateway Token and save it securely:
+   ![alt text](images/image-5.png)
+3. Switch to **Infrastructure** and enable the `OpenAI Chat Completions Endpoint`:
+   ![alt text](images/image-6.png)
 
 4. Click the `Save` button in the top-right corner to save your configuration
 
@@ -91,11 +88,11 @@ Log in to the [DingTalk DEAP Platform](https://deap.dingtalk.com), navigate to *
 
 3. Configure skill parameters:
 
-   | Parameter | Source | Description |
-   |-----------|--------|-------------|
-   | apikey | From Step 2 | DEAP Platform API Key |
-   | apihost | Default | Typically `127.0.0.1:18789`. On Windows, you may need to use `localhost:18789` instead |
-   | gatewayToken | From Step 1 | Gateway authentication token |
+   | Parameter    | Source     | Description                                                                            |
+   | ------------ | ---------- | -------------------------------------------------------------------------------------- |
+   | apikey       | From Step 2 | DEAP Platform API Key                                                                  |
+   | apihost      | Default     | Typically `127.0.0.1:18789`. On Windows, you may need to use `localhost:18789` instead |
+   | gatewayToken | From Step 1 | Gateway authentication token                                                           |
 
    <img width="3426" height="1752" alt="Configure OpenClaw Skill Parameters" src="https://github.com/user-attachments/assets/bc725789-382f-41b5-bbdb-ba8f29923d5c" />
 
