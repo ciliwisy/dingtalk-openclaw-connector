@@ -69,12 +69,13 @@ openclaw gateway start
 ### 第三步：启动 Connector 客户端
 
 1. 从 [Releases](https://github.com/hoskii/dingtalk-openclaw-connector/releases/tag/v0.0.1) 页面下载适配您操作系统的安装包
-2. 解压并运行 Connector（以 macOS 为例）：
+2. 解压后在对应目录运行 Connector（以 macOS 为例）：
 
    ```bash
    unzip connector-mac.zip
    ./connector-darwin -deapCorpId YOUR_CORP_ID -deapApiKey YOUR_API_KEY
    ```
+   ![alt text](images/image-7.png)
 
 ### 第四步：配置 DEAP Agent
 

@@ -69,12 +69,13 @@ Log in to the [DingTalk DEAP Platform](https://deap.dingtalk.com), navigate to *
 ### Step 3: Start the Connector Client
 
 1. Download the installer for your operating system from the [Releases](https://github.com/hoskii/dingtalk-openclaw-connector/releases/tag/v0.0.1) page
-2. Extract and run the Connector (macOS example):
+2. Extract and run the Connector in the corresponding directory (macOS example):
 
    ```bash
    unzip connector-mac.zip
    ./connector-darwin -deapCorpId YOUR_CORP_ID -deapApiKey YOUR_API_KEY
    ```
+   ![alt text](images/image-7.png)
 
 ### Step 4: Configure the DEAP Agent
 
